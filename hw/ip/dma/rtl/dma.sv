@@ -46,6 +46,7 @@ module dma #(
   logic        [               31:0] dma_cnt_dec;
   logic                              dma_start;
   logic                              dma_done;
+  logic                              dma_halfway;
 
   logic        [Addr_Fifo_Depth-1:0] fifo_usage;
   logic                              fifo_alm_full;
@@ -81,6 +82,8 @@ module dma #(
 
   logic        [                3:0] byte_enable_out;
 
+  logic                              circular_mode;
+
   enum logic {
     DMA_READ_FSM_IDLE,
     DMA_READ_FSM_ON
@@ -113,14 +116,18 @@ module dma #(
   assign data_out_rvalid = dma_master1_ch0_resp_i.rvalid;
   assign data_out_rdata = dma_master1_ch0_resp_i.rdata;
 
-  assign dma_intr_o = dma_done;
+  assign dma_intr_o = dma_done | (circular_mode & dma_halfway);
   assign data_type = reg2hw.data_type.q;
 
-  assign hw2reg.done.de = dma_done | dma_start;
-  assign hw2reg.done.d = dma_done == 1'b1 ? 1'b1 : 1'b0;
+  assign hw2reg.done.done.de = dma_done | dma_start;
+  assign hw2reg.done.done.d = dma_done;
 
-  assign hw2reg.dma_start.de = dma_start;
-  assign hw2reg.dma_start.d = 32'h0;
+  assign hw2reg.done.halfway.de = dma_halfway | dma_start;
+  assign hw2reg.done.halfway.d = dma_halfway;
+
+  assign dma_halfway = (dma_cnt == {1'b0, reg2hw.dma_start.q[31:1]}) & (|dma_cnt);
+
+  assign circular_mode = reg2hw.circular_mode.q;
 
   assign wait_for_rx = |(reg2hw.rx_wait_mode.q[PERIPHERALS_RX-1:0] & ~rx_valid_i);
   assign wait_for_tx = |(reg2hw.tx_wait_mode.q[PERIPHERALS_TX-1:0] & ~tx_ready_i);
@@ -135,7 +142,7 @@ module dma #(
       if (dma_start == 1'b1) begin
         dma_start <= 1'b0;
       end else begin
-        dma_start <= |reg2hw.dma_start.q;
+        dma_start <= reg2hw.dma_start.qe | (dma_done & circular_mode);
       end
     end
   end

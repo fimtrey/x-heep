@@ -77,7 +77,8 @@ module dma_reg_top #(
   logic [31:0] dma_start_qs;
   logic [31:0] dma_start_wd;
   logic dma_start_we;
-  logic [31:0] done_qs;
+  logic done_done_qs;
+  logic done_halfway_qs;
   logic [31:0] src_ptr_inc_qs;
   logic [31:0] src_ptr_inc_wd;
   logic src_ptr_inc_we;
@@ -93,6 +94,9 @@ module dma_reg_top #(
   logic [1:0] data_type_qs;
   logic [1:0] data_type_wd;
   logic data_type_we;
+  logic circular_mode_qs;
+  logic circular_mode_wd;
+  logic circular_mode_we;
 
   // Register instances
   // R[ptr_in]: V(False)
@@ -164,11 +168,11 @@ module dma_reg_top #(
       .wd(dma_start_wd),
 
       // from internal hardware
-      .de(hw2reg.dma_start.de),
-      .d (hw2reg.dma_start.d),
+      .de(1'b0),
+      .d ('0),
 
       // to internal hardware
-      .qe(),
+      .qe(reg2hw.dma_start.qe),
       .q (reg2hw.dma_start.q),
 
       // to register interface (read)
@@ -178,11 +182,12 @@ module dma_reg_top #(
 
   // R[done]: V(False)
 
+  //   F[done]: 0:0
   prim_subreg #(
-      .DW      (32),
+      .DW      (1),
       .SWACCESS("RO"),
-      .RESVAL  (32'h1)
-  ) u_done (
+      .RESVAL  (1'h1)
+  ) u_done_done (
       .clk_i (clk_i),
       .rst_ni(rst_ni),
 
@@ -190,15 +195,40 @@ module dma_reg_top #(
       .wd('0),
 
       // from internal hardware
-      .de(hw2reg.done.de),
-      .d (hw2reg.done.d),
+      .de(hw2reg.done.done.de),
+      .d (hw2reg.done.done.d),
 
       // to internal hardware
       .qe(),
       .q (),
 
       // to register interface (read)
-      .qs(done_qs)
+      .qs(done_done_qs)
+  );
+
+
+  //   F[halfway]: 1:1
+  prim_subreg #(
+      .DW      (1),
+      .SWACCESS("RO"),
+      .RESVAL  (1'h0)
+  ) u_done_halfway (
+      .clk_i (clk_i),
+      .rst_ni(rst_ni),
+
+      .we(1'b0),
+      .wd('0),
+
+      // from internal hardware
+      .de(hw2reg.done.halfway.de),
+      .d (hw2reg.done.halfway.d),
+
+      // to internal hardware
+      .qe(),
+      .q (),
+
+      // to register interface (read)
+      .qs(done_halfway_qs)
   );
 
 
@@ -337,9 +367,36 @@ module dma_reg_top #(
   );
 
 
+  // R[circular_mode]: V(False)
+
+  prim_subreg #(
+      .DW      (1),
+      .SWACCESS("RW"),
+      .RESVAL  (1'h0)
+  ) u_circular_mode (
+      .clk_i (clk_i),
+      .rst_ni(rst_ni),
+
+      // from register interface
+      .we(circular_mode_we),
+      .wd(circular_mode_wd),
+
+      // from internal hardware
+      .de(1'b0),
+      .d ('0),
+
+      // to internal hardware
+      .qe(),
+      .q (reg2hw.circular_mode.q),
+
+      // to register interface (read)
+      .qs(circular_mode_qs)
+  );
 
 
-  logic [8:0] addr_hit;
+
+
+  logic [9:0] addr_hit;
   always_comb begin
     addr_hit = '0;
     addr_hit[0] = (reg_addr == DMA_PTR_IN_OFFSET);
@@ -351,6 +408,7 @@ module dma_reg_top #(
     addr_hit[6] = (reg_addr == DMA_RX_WAIT_MODE_OFFSET);
     addr_hit[7] = (reg_addr == DMA_TX_WAIT_MODE_OFFSET);
     addr_hit[8] = (reg_addr == DMA_DATA_TYPE_OFFSET);
+    addr_hit[9] = (reg_addr == DMA_CIRCULAR_MODE_OFFSET);
   end
 
   assign addrmiss = (reg_re || reg_we) ? ~|addr_hit : 1'b0;
@@ -366,7 +424,8 @@ module dma_reg_top #(
                (addr_hit[5] & (|(DMA_PERMIT[5] & ~reg_be))) |
                (addr_hit[6] & (|(DMA_PERMIT[6] & ~reg_be))) |
                (addr_hit[7] & (|(DMA_PERMIT[7] & ~reg_be))) |
-               (addr_hit[8] & (|(DMA_PERMIT[8] & ~reg_be)))));
+               (addr_hit[8] & (|(DMA_PERMIT[8] & ~reg_be))) |
+               (addr_hit[9] & (|(DMA_PERMIT[9] & ~reg_be)))));
   end
 
   assign ptr_in_we = addr_hit[0] & reg_we & !reg_error;
@@ -393,6 +452,9 @@ module dma_reg_top #(
   assign data_type_we = addr_hit[8] & reg_we & !reg_error;
   assign data_type_wd = reg_wdata[1:0];
 
+  assign circular_mode_we = addr_hit[9] & reg_we & !reg_error;
+  assign circular_mode_wd = reg_wdata[0];
+
   // Read data return
   always_comb begin
     reg_rdata_next = '0;
@@ -410,7 +472,8 @@ module dma_reg_top #(
       end
 
       addr_hit[3]: begin
-        reg_rdata_next[31:0] = done_qs;
+        reg_rdata_next[0] = done_done_qs;
+        reg_rdata_next[1] = done_halfway_qs;
       end
 
       addr_hit[4]: begin
@@ -431,6 +494,10 @@ module dma_reg_top #(
 
       addr_hit[8]: begin
         reg_rdata_next[1:0] = data_type_qs;
+      end
+
+      addr_hit[9]: begin
+        reg_rdata_next[0] = circular_mode_qs;
       end
 
       default: begin
