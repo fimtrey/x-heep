@@ -57,7 +57,7 @@ module i2s_core #(
   );
 
   logic sck;
-  assign i2s_sck_oe_o = en_i & cfg_clk_ws_en_i & clk_div_running;
+  assign i2s_sck_oe_o = en_i & cfg_clk_ws_en_i;
 
   tc_clk_mux2 i_clk_bypass_mux (
       .clk0_i   (i2s_sck_i),
@@ -66,40 +66,16 @@ module i2s_core #(
       .clk_o    (sck)
   );
 
-  logic div_valid;
-  logic div_ready;
-  logic [ClkDivSize-1:0] div;
-
-  // This is a workaround
-  // Such that it starts with the demanded div value.
-  logic clk_div_running;
-  always_ff @(posedge clk_i, negedge rst_ni) begin
-    if (~rst_ni) begin
-      clk_div_running <= 1'b0;
-    end else begin
-      if (div_ready) begin
-        clk_div_running <= 1'b1;
-      end
-    end
-  end
-
-  assign div = cfg_clock_div_i;
-  assign div_valid = 1'b1;
 
 
-
-  clk_int_div #(
-      .DIV_VALUE_WIDTH(ClkDivSize),
-      .DEFAULT_DIV_VALUE(2)  // HAS TO BE BIGGER THAN ONE TO GET THE START RIGHT
+  i2s_clk_div #(
+      .DIV_VALUE_WIDTH(ClkDivSize)
   ) i2s_clk_gen_i (
-      .clk_i(clk_i),
+      .clk_i (clk_i),
       .rst_ni(rst_ni),
-      .en_i(en_i & cfg_clk_ws_en_i),
-      .test_mode_en_i(1'b0),
-      .clk_o(i2s_sck_o),
-      .div_i(div),
-      .div_valid_i(div_valid),
-      .div_ready_o(div_ready)
+      .en_i  (en_i & cfg_clk_ws_en_i),
+      .clk_o (i2s_sck_o),
+      .div_i (cfg_clock_div_i)
   );
 
   assign i2s_sd_oe_o = 1'b0;
