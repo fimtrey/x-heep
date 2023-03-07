@@ -45,9 +45,6 @@ module i2s #(
   i2s_reg2hw_t reg2hw;
   i2s_hw2reg_t hw2reg;
 
-
-  logic sck;
-
   // RX Window Interface signals
   reg_req_t    rx_win_h2d;
   reg_rsp_t    rx_win_d2h;
@@ -80,7 +77,7 @@ module i2s #(
       .WIDTH(SampleWidth),
       .LOG_DEPTH(FIFO_ADDR_WIDTH)
   ) rx_fifo_i (
-      .src_clk_i  (sck),
+      .src_clk_i  (clk_i),
       .src_rst_ni (rst_ni),
       .src_ready_o(rx_fifo_ready),
       .src_data_i (rx_fifo_data_in),
@@ -151,8 +148,6 @@ module i2s #(
       .i2s_sd_o    (i2s_sd_o),
       .i2s_sd_oe_o (i2s_sd_oe_o),
       .i2s_sd_i    (i2s_sd_i),
-
-      .sck_o(sck),
 
       .cfg_clk_ws_en_i(reg2hw.cfg.gen_clk_ws.q),
       .cfg_lsb_first_i(reg2hw.cfg.lsb_first.q),

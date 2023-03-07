@@ -13,9 +13,10 @@ module i2s_rx_channel #(
     parameter  int unsigned SampleWidth,
     localparam int unsigned CounterWidth = $clog2(SampleWidth)
 ) (
-    input logic sck_i,
+    input logic clk_i,
     input logic rst_ni,
     input logic en_i,
+    input logic sck_i,
     input logic ws_i,
     input logic sd_i,
 
@@ -23,92 +24,129 @@ module i2s_rx_channel #(
     input logic cfg_lsb_first_i,
     input logic [CounterWidth-1:0] cfg_sample_width_i,
 
-    // FIFO
-    output logic [SampleWidth-1:0] fifo_rx_data_o,
-    output logic                   fifo_rx_data_valid_o,
-    input  logic                   fifo_rx_data_ready_i,
-    output logic                   fifo_rx_err_o
+    // OUTOPUT
+    output logic [SampleWidth-1:0] left_sample_o,
+    output logic [SampleWidth-1:0] right_sample_o,
+    output logic                   left_valid_o,
+    output logic                   right_valid_o,
+    input  logic                   left_read_i,
+    input  logic                   right_read_i
 );
 
+
+  logic r_sck;
+  logic s_rising_sck;
+
+  enum logic [1:0] {
+    IDLE     = 2'b00,
+    RUNNING  = 2'b01,
+    OVERFLOW = 2'b10,
+    WORDDONE = 2'b11
+  } state;
 
   logic r_ws_old;
   logic s_ws_edge;
 
   logic [SampleWidth-1:0] r_shiftreg;
-  logic [SampleWidth-1:0] s_shiftreg;
-  logic [SampleWidth-1:0] r_shadow;
-
   logic [CounterWidth-1:0] r_count_bit;
 
-  logic s_word_done;
-
-  logic r_started;
-  logic r_started_dly;  // "delayed" by one extra cycle as the ws edge comes one early 
-
-  logic r_valid;
-
   assign s_ws_edge = ws_i ^ r_ws_old;
+  assign s_rising_sck = ((r_sck == 1'b1) & (sck_i == 1'b0));
 
-  assign s_word_done = r_count_bit == cfg_sample_width_i;
 
-  assign fifo_rx_data_o = r_valid ? r_shadow : {(SampleWidth) {1'b0}};
-  assign fifo_rx_data_valid_o = r_valid;
-  assign fifo_rx_err_o = r_valid & ~fifo_rx_data_ready_i & s_word_done;
-
-  always_comb begin : proc_shiftreg
-    s_shiftreg = r_shiftreg;
-    if (cfg_lsb_first_i) begin
-      s_shiftreg = {1'b0, r_shiftreg[SampleWidth-1:1]};
-      s_shiftreg[cfg_sample_width_i] = sd_i;
+  always_ff @(posedge clk_i, negedge rst_ni) begin
+    if (rst_ni == 1'b0) begin
+      r_sck <= 'h0;
     end else begin
-      s_shiftreg = {r_shiftreg[SampleWidth-2:0], sd_i};
+      if (en_i) begin
+        r_sck <= sck_i;
+      end else begin
+        r_sck <= 1'b0;
+      end
     end
   end
 
-  always_ff @(posedge sck_i, negedge rst_ni) begin
+  always_ff @(posedge clk_i, negedge rst_ni) begin
     if (rst_ni == 1'b0) begin
       r_shiftreg <= 'h0;
-      r_shadow <= 'h0;
-      r_valid <= 1'b0;
     end else begin
-      if (r_started) begin
-        r_shiftreg <= s_shiftreg;
-        if (s_word_done) begin
-          r_shadow <= r_shiftreg;
-          r_valid  <= 1'b1;
-        end
-      end
-      if (r_valid) begin
-        if (fifo_rx_data_ready_i) begin
-          r_valid <= 1'b0;
+      if (state[0] == 1'b1) begin  // RUNNING or DONE
+        if (cfg_lsb_first_i) begin
+          r_shiftreg <= {1'b0, r_shiftreg[SampleWidth-1:1]};
+          r_shiftreg[cfg_sample_width_i] <= sd_i;
+        end else begin
+          r_shiftreg[cfg_sample_width_i-r_count_bit] <= sd_i;  // MSB FIRST            
         end
       end
     end
   end
 
-  always_ff @(posedge sck_i, negedge rst_ni) begin
+  // output register
+  always_ff @(posedge clk_i, negedge rst_ni) begin
+    if (rst_ni == 1'b0) begin
+      left_sample_o  <= 'h0;
+      right_sample_o <= 'h0;
+      left_valid_o   <= 1'b0;
+      right_valid_o  <= 1'b0;
+    end else begin
+      if (left_read_i) left_valid_o <= 1'b0;
+      if (right_read_i) right_valid_o <= 1'b0;
+      if (s_rising_sck & (state == WORDDONE)) begin
+        if (r_ws_old == 1'b1) begin
+          left_sample_o <= r_shiftreg;
+          left_valid_o  <= 1'b1;
+        end else begin
+          right_sample_o <= r_shiftreg;
+          right_valid_o  <= 1'b1;
+        end
+      end
+    end
+  end
+
+  // count bit
+  always_ff @(posedge clk_i, negedge rst_ni) begin
     if (rst_ni == 1'b0) begin
       r_count_bit <= 'h0;
     end else begin
-      if (r_started_dly) begin
-        if (s_word_done) r_count_bit <= 'h0;
-        else r_count_bit <= r_count_bit + 1;
+      if (s_rising_sck & (state != IDLE)) begin
+        if (s_ws_edge == 1'b1) begin
+          r_count_bit <= 'h0;
+        end else if (r_count_bit <= cfg_sample_width_i) begin
+          r_count_bit <= r_count_bit + 'h1;
+        end
       end
     end
   end
 
-
-  always_ff @(posedge sck_i, negedge rst_ni) begin
+  always_ff @(posedge clk_i, negedge rst_ni) begin
     if (rst_ni == 1'b0) begin
-      r_ws_old      <= 'h0;
-      r_started     <= 'h0;
-      r_started_dly <= 'h0;
+      r_ws_old <= 'h0;
     end else begin
-      r_ws_old <= ws_i;
-      r_started_dly <= r_started;
-      if (s_ws_edge) begin
-        if (en_i) r_started <= 1'b1;
-        else r_started <= 1'b0;
+      if (s_rising_sck) r_ws_old <= ws_i;
+    end
+  end
+
+  // fsm 
+  always_ff @(posedge clk_i, negedge rst_ni) begin
+    if (~rst_ni) begin
+      state <= IDLE;
+    end else begin
+      if (s_rising_sck) begin
+        case (state)
+          IDLE: begin
+            if (s_ws_edge) state <= RUNNING;
+          end
+          RUNNING: begin
+            if (s_ws_edge) state <= WORDDONE;
+            else if (r_count_bit == cfg_sample_width_i) state <= OVERFLOW;
+          end
+          OVERFLOW: begin
+            if (s_ws_edge) state <= WORDDONE;
+          end
+          WORDDONE: begin
+            state <= RUNNING;
+          end
+        endcase
       end
     end
   end
