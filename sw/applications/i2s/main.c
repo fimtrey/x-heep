@@ -39,7 +39,7 @@ int i2s_interrupt_flag;
 
 #define I2S_TEST_BATCH_SIZE    128
 #define I2S_TEST_BATCHES      16
-#define I2S_CLK_DIV           512
+#define I2S_CLK_DIV           4
 
 #define AUDIO_DATA_NUM 32
 uint32_t audio_data_0[AUDIO_DATA_NUM] __attribute__ ((aligned (4)))  = { 0 };
@@ -115,7 +115,7 @@ void setup()
     i2s_set_enable_intr(&i2s, 1);
     i2s_set_clk_divider(&i2s, I2S_CLK_DIV);
     i2s_set_intr_reach_count(&i2s, I2S_TEST_BATCH_SIZE);
-    i2s_set_data_width(&i2s, I2S_BYTEPERSAMPLE_COUNT_VALUE_8_BITS);
+    i2s_set_data_width(&i2s, I2S_BYTEPERSAMPLE_COUNT_VALUE_32_BITS);
     i2s_set_enable(&i2s, 1, 1);
 
     i2s_interrupt_flag = 0;
