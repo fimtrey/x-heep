@@ -28,7 +28,8 @@
     { name:     "DMA_START",
       desc:     "Number of bytes to copy - Once a value is written, the copy starts",
       swaccess: "rw",
-      hwaccess: "hrw",
+      hwaccess: "hro",
+      hwqe:     "true", // enable `qe` latched signal of software write pulse
       fields: [
         { bits: "31:0", name: "DMA_START", desc: "DMA counter and start" }
       ]
@@ -39,7 +40,8 @@
       hwaccess: "hwo",
       resval:   1,
       fields: [
-        { bits: "31:0", name: "DONE", desc: "Copy done" }
+        { bits: "0", name: "DONE", desc: "Copy done", hwaccess: "hrw"},
+        { bits: "1", name: "HALFWAY", desc: "set if DMA is copying second half"},
       ]
     },
     { name:     "SRC_PTR_INC",
@@ -104,5 +106,15 @@
         }
       ]
     }
+    { name:     "CIRCULAR_MODE",
+      desc:     '''Restarts copying as soon as end of buffer is reach.
+                   Will trigger DMA interrupt twice: halfway and end of buffer.
+                   To end clear this flag to finish current transaction. ''',
+      swaccess: "rw",
+      hwaccess: "hro",
+      fields: [
+        { bits: "0", name: "CIRCULAR_MODE", desc: "Enables ciruclar mode" }
+      ]
+    },
    ]
 }

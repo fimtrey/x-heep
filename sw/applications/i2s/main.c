@@ -41,9 +41,9 @@ int i2s_interrupt_flag;
 #define I2S_TEST_BATCHES      16
 #define I2S_CLK_DIV           4
 
-#define AUDIO_DATA_NUM 32
+#define AUDIO_DATA_NUM 256
 uint32_t audio_data_0[AUDIO_DATA_NUM] __attribute__ ((aligned (4)))  = { 0 };
-uint32_t audio_data_1[AUDIO_DATA_NUM] __attribute__ ((aligned (4)))  = { 0 };
+// uint32_t audio_data_1[AUDIO_DATA_NUM] __attribute__ ((aligned (4)))  = { 0 };
 
 
 // DMA
@@ -72,14 +72,6 @@ void handler_irq_fast_dma(void)
     fast_intr_ctrl.base_addr = mmio_region_from_addr((uintptr_t)FAST_INTR_CTRL_START_ADDRESS);
     clear_fast_interrupt(&fast_intr_ctrl, kDma_fic_e);
     dma_intr_flag = 1;
-
-    // dma peripheral structure to access the registers
-    dma_t dma;
-    dma.base_addr = mmio_region_from_addr((uintptr_t)DMA_START_ADDRESS);
-
-    dma_buffer_id = !dma_buffer_id;
-    dma_set_write_ptr(&dma,  (dma_buffer_id ? (uint32_t) audio_data_1 : (uint32_t) audio_data_0) ); // audio data address
-    dma_set_cnt_start(&dma, (uint32_t) (AUDIO_DATA_NUM*4));
 }
 
 
@@ -102,6 +94,7 @@ void setup()
     dma_set_write_ptr(&dma, (uint32_t) audio_data_0); // audio data address
     dma_set_rx_wait_mode(&dma, DMA_RX_WAIT_I2S); // The DMA will wait for the I2s RX FIFO valid signal
     dma_set_data_type(&dma, (uint32_t) 0);
+    dma_enable_circular_mode(&dma,true);  
     dma_set_cnt_start(&dma, (uint32_t) (AUDIO_DATA_NUM*4)); // start 
 
 
@@ -143,11 +136,27 @@ int main(int argc, char *argv[]) {
 #pragma message ( "this application never ends" )
     int batch = 0;
     while(1) {
-        while(i2s_interrupt_flag == batch) {
+        while(!dma_intr_flag) {
             wait_for_interrupt();
             //printf(".");
         }
-        printf("\r\n");
+        dma_intr_flag = 0;
+
+        bool halfway = dma_get_halfway(&dma);
+
+        int mean = 0;
+        uint32_t* data = halfway ? audio_data_0 : audio_data_0 + AUDIO_DATA_NUM/2;
+        for (int i = 0; i < AUDIO_DATA_NUM/2; i++) {
+            mean += data[i] / (AUDIO_DATA_NUM / 2);
+        }
+
+        int var = 0;
+        for (int i = 0; i < AUDIO_DATA_NUM/2; i++) {
+            int dif = mean - data[i];
+            var += (dif * dif) / (AUDIO_DATA_NUM / 2);
+        }
+
+        printf("%10d %10d\r\n", mean, var);
         batch += 1;
     }
 #else

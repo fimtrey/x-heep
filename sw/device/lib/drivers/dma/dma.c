@@ -21,8 +21,12 @@ void dma_set_cnt_start(const dma_t *dma, uint32_t copy_size) {
   mmio_region_write32(dma->base_addr, (ptrdiff_t)(DMA_DMA_START_REG_OFFSET), copy_size);
 }
 
-int32_t dma_get_done(const dma_t *dma) {
-  return mmio_region_read32(dma->base_addr, (ptrdiff_t)(DMA_DONE_REG_OFFSET));
+bool dma_get_done(const dma_t *dma) {
+  return mmio_region_get_bit32(dma->base_addr, (ptrdiff_t)(DMA_DONE_REG_OFFSET), DMA_DONE_DONE_BIT);
+}
+
+bool dma_get_halfway(const dma_t *dma) {
+    return mmio_region_get_bit32(dma->base_addr, (ptrdiff_t)(DMA_DONE_REG_OFFSET), DMA_DONE_HALFWAY_BIT);
 }
 
 void dma_set_read_ptr_inc(const dma_t *dma, uint32_t read_ptr_inc){
@@ -41,7 +45,35 @@ void dma_set_tx_wait_mode(const dma_t *dma, uint32_t peripheral_mask) {
   mmio_region_write32(dma->base_addr, (ptrdiff_t)(DMA_TX_WAIT_MODE_REG_OFFSET), peripheral_mask);
 }
 
+void dma_set_spi_mode(const dma_t *dma, uint32_t spi_mode){
+  switch (spi_mode) {
+    case DMA_SPI_MODE_DISABLED: {
+      dma_set_rx_wait_mode(dma, DMA_RX_WAIT_MODE_DISABLED);
+      dma_set_tx_wait_mode(dma, DMA_TX_WAIT_MODE_DISABLED);
+    } break;
+    case DMA_SPI_MODE_SPI_RX: {
+      dma_set_rx_wait_mode(dma, DMA_RX_WAIT_SPI);
+      dma_set_tx_wait_mode(dma, DMA_TX_WAIT_MODE_DISABLED);
+    } break;
+    case DMA_SPI_MODE_SPI_TX: {
+      dma_set_rx_wait_mode(dma, DMA_RX_WAIT_MODE_DISABLED);
+      dma_set_tx_wait_mode(dma, DMA_TX_WAIT_SPI);
+    } break;
+    case DMA_SPI_MODE_SPI_FLASH_RX: {
+      dma_set_rx_wait_mode(dma, DMA_RX_WAIT_SPI_FLASH);
+      dma_set_tx_wait_mode(dma, DMA_TX_WAIT_MODE_DISABLED);
+    } break;
+    case DMA_SPI_MODE_SPI_FLASH_TX: {
+      dma_set_rx_wait_mode(dma, DMA_RX_WAIT_MODE_DISABLED);
+      dma_set_tx_wait_mode(dma, DMA_TX_WAIT_SPI_FLASH);
+    } break;
+  }
+}
 
 void dma_set_data_type(const dma_t *dma, uint32_t data_type){
   mmio_region_write32(dma->base_addr, (ptrdiff_t)(DMA_DATA_TYPE_REG_OFFSET), data_type);
+}
+
+void dma_enable_circular_mode(const dma_t *dma, bool enable) {
+  mmio_region_write32(dma->base_addr, DMA_CIRCULAR_MODE_REG_OFFSET, enable << DMA_CIRCULAR_MODE_CIRCULAR_MODE_BIT);
 }
