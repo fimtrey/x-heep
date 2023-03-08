@@ -41,7 +41,7 @@ int i2s_interrupt_flag;
 #define I2S_TEST_BATCHES      16
 #define I2S_CLK_DIV           4
 
-#define AUDIO_DATA_NUM 256
+#define AUDIO_DATA_NUM 2048
 uint32_t audio_data_0[AUDIO_DATA_NUM] __attribute__ ((aligned (4)))  = { 0 };
 // uint32_t audio_data_1[AUDIO_DATA_NUM] __attribute__ ((aligned (4)))  = { 0 };
 
@@ -105,7 +105,7 @@ void setup()
 
 
     // enable I2s interrupt
-    i2s_set_enable_intr(&i2s, 1);
+    i2s_set_enable_intr(&i2s, false);
     i2s_set_clk_divider(&i2s, I2S_CLK_DIV);
     i2s_set_intr_reach_count(&i2s, I2S_TEST_BATCH_SIZE);
     i2s_set_data_width(&i2s, I2S_BYTEPERSAMPLE_COUNT_VALUE_32_BITS);
@@ -138,21 +138,20 @@ int main(int argc, char *argv[]) {
     while(1) {
         while(!dma_intr_flag) {
             wait_for_interrupt();
-            //printf(".");
         }
         dma_intr_flag = 0;
 
         bool halfway = dma_get_halfway(&dma);
 
         int mean = 0;
-        uint32_t* data = halfway ? audio_data_0 : audio_data_0 + AUDIO_DATA_NUM/2;
+        int32_t* data = halfway ? audio_data_0 : audio_data_0 + AUDIO_DATA_NUM/2;
         for (int i = 0; i < AUDIO_DATA_NUM/2; i++) {
             mean += data[i] / (AUDIO_DATA_NUM / 2);
         }
 
         int var = 0;
         for (int i = 0; i < AUDIO_DATA_NUM/2; i++) {
-            int dif = mean - data[i];
+            int dif =  data[i] - mean;
             var += (dif * dif) / (AUDIO_DATA_NUM / 2);
         }
 
