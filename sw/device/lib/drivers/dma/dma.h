@@ -21,9 +21,14 @@
 #define DMA_RX_WAIT_I2S           4
 
 #define DMA_TX_WAIT_MODE_DISABLED 0
-#define DMA_RX_WAIT_SPI           1
-#define DMA_RX_WAIT_SPI_FLASH     2
+#define DMA_TX_WAIT_SPI           1
+#define DMA_TX_WAIT_SPI_FLASH     2
 
+#define DMA_SPI_MODE_DISABLED     0
+#define DMA_SPI_MODE_SPI_RX       1
+#define DMA_SPI_MODE_SPI_TX       2
+#define DMA_SPI_MODE_SPI_FLASH_RX 3
+#define DMA_SPI_MODE_SPI_FLASH_TX 4
 
 #ifdef __cplusplus
 extern "C" {
@@ -66,7 +71,14 @@ void dma_set_cnt_start(const dma_t *dma, uint32_t copy_size);
  * @param dma Pointer to dma_t represting the target MEMCOPY PERIPHERAL.
  * @return done value (0: data are being copied - 1: copy done/peripheral idle)
  */
-int32_t dma_get_done(const dma_t *dma);
+bool dma_get_done(const dma_t *dma);
+
+/**
+ * Read the halfway flag from done register of the DMA
+ * @param dma Pointer to dma_t represting the target MEMCOPY PERIPHERAL.
+ * @return halfway value (0: dma is processing first have - 1: first have is done)
+ */
+bool dma_get_halfway(const dma_t *dma);
 
 /**
  * Write to src_ptr_inc register of the DMA.
@@ -97,11 +109,37 @@ void dma_set_rx_wait_mode(const dma_t *dma, uint32_t peripheral_mask);
 void dma_set_tx_wait_mode(const dma_t *dma, uint32_t peripheral_mask);
 
 /**
+ * Sets the DMA data transfer modes when used with the SPI.
+ * 
+ * 0 = mem to mem
+ * 1 = spi_rx to mem
+ * 2 = mem to spi_tx
+ * 3 = spi_flash_rx to mem
+ * 4 = mem to spi_flash_tx
+ * 
+ * @param dma Pointer to dma_t represting the target DMA.
+ * @param spi_mode (Default: 0)
+ */
+void dma_set_spi_mode(const dma_t *dma, uint32_t spi_mode);
+
+/**
  * Sets the DMA data type.
  * @param dma Pointer to dma_t represting the target DMA.
  * @param data_type Data type to transfer: 32-bit word(0), 16-bit half word (1), 8-bit byte(2,3).
  */
 void dma_set_data_type(const dma_t *dma, uint32_t data_type);
+
+/**
+ * Enables/disables the cirucular mode of the DMA.
+ * 
+ * Restarts copying as soon as end of buffer is reach.
+ * Will trigger DMA interrupt twice: halfway and end of buffer.
+ * To stop clear this flag and it will stop after current transaction.
+ * 
+ * @param dma Pointer to dma_t represting the target DMA.
+ * @param enable bool.
+ */
+void dma_enable_circular_mode(const dma_t *dma, bool enable);
 
 #ifdef __cplusplus
 }

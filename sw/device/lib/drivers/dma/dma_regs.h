@@ -27,6 +27,8 @@ extern "C" {
 
 // Register set to 1 when copy is done
 #define DMA_DONE_REG_OFFSET 0xc
+#define DMA_DONE_DONE_BIT 0
+#define DMA_DONE_HALFWAY_BIT 1
 
 // Increment number of source pointer every time a word is copied from source
 #define DMA_SRC_PTR_INC_REG_OFFSET 0x10
@@ -52,6 +54,10 @@ extern "C" {
 #define DMA_DATA_TYPE_DATA_TYPE_VALUE_DMA_16BIT_WORD 0x1
 #define DMA_DATA_TYPE_DATA_TYPE_VALUE_DMA_8BIT_WORD 0x2
 #define DMA_DATA_TYPE_DATA_TYPE_VALUE_DMA_8BIT_WORD_2 0x3
+
+// Restarts copying as soon as end of buffer is reach.
+#define DMA_CIRCULAR_MODE_REG_OFFSET 0x24
+#define DMA_CIRCULAR_MODE_CIRCULAR_MODE_BIT 0
 
 #ifdef __cplusplus
 }  // extern "C"
