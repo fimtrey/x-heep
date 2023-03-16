@@ -39,10 +39,6 @@ module i2s_core #(
     output logic                   fifo_rx_err_o
 );
 
-  logic clk_div_running;
-
-
-
   logic ws;
   assign ws = i2s_ws_oe_o ? i2s_ws_o : i2s_ws_i;
 
