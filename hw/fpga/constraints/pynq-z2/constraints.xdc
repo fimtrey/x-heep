@@ -1,1 +1,22 @@
 set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets x_heep_system_i/pad_ring_i/pad_clk_i/xilinx_iobuf_i/O]
+
+
+create_debug_core u_ila_0 ila
+set_property ALL_PROBE_SAME_MU true [get_debug_cores u_ila_0]
+set_property ALL_PROBE_SAME_MU_CNT 1 [get_debug_cores u_ila_0]
+set_property C_ADV_TRIGGER false [get_debug_cores u_ila_0]
+set_property C_DATA_DEPTH 1024 [get_debug_cores u_ila_0]
+set_property C_EN_STRG_QUAL false [get_debug_cores u_ila_0]
+set_property C_INPUT_PIPE_STAGES 0 [get_debug_cores u_ila_0]
+set_property C_TRIGIN_EN false [get_debug_cores u_ila_0]
+set_property C_TRIGOUT_EN false [get_debug_cores u_ila_0]
+set_property port_width 1 [get_debug_ports u_ila_0/clk]
+connect_debug_port u_ila_0/clk [get_nets [list core_v_mini_mcu_i/cpu_subsystem_i/gen_cv32e20.cv32e20_i/clk]]
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe0]
+set_property port_width 25 [get_debug_ports u_ila_0/probe0]
+connect_debug_port u_ila_0/probe0 [get_nets [list {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[9]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[10]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[11]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[12]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[13]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[14]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[15]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[16]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[17]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[18]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[19]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[20]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[21]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[22]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[23]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[24]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[25]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[26]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[27]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[28]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[29]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[30]} {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[31]} x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/i2s_i/i2s_sck_out_x {x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/intr_vector__0[32]}]]
+set_property MARK_DEBUG true [get_nets x_heep_system_i/core_v_mini_mcu_i/peripheral_subsystem_i/i2s_i/i2s_sck_out_x]
+set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
+set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
+set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]
+connect_debug_port dbg_hub/clk [get_nets x_heep_system_i/clk]
