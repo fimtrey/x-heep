@@ -13,10 +13,11 @@ module i2s_ws_gen #(
     parameter SampleWidth,
     localparam int unsigned CounterWidth = $clog2(SampleWidth)
 ) (
-    input logic sck_i,
+    input logic clk_i,
     input logic rst_ni,
     input logic en_i,
 
+    input  logic sck_i,
     output logic ws_o,
     output logic ws_oe_o,
 
@@ -27,11 +28,26 @@ module i2s_ws_gen #(
 
   assign ws_oe_o = en_i;
 
-  always_ff @(posedge sck_i, negedge rst_ni) begin
+  logic r_sck;
+  logic falling_sck;
+
+  assign falling_sck = ((r_sck == 1'b1) & (sck_i == 1'b0));
+
+  always_ff @(posedge clk_i, negedge rst_ni) begin
+    if (rst_ni == 1'b0) begin
+      r_sck <= 'h0;
+    end else begin
+      if (en_i) begin
+        r_sck <= sck_i;
+      end
+    end
+  end
+
+  always_ff @(posedge clk_i, negedge rst_ni) begin
     if (rst_ni == 1'b0) begin
       r_counter <= 'h0;
     end else begin
-      if (en_i) begin
+      if (en_i & falling_sck) begin
         if (r_counter == cfg_sample_width_i) r_counter <= 'h0;
         else r_counter <= r_counter + 1;
       end
@@ -39,11 +55,11 @@ module i2s_ws_gen #(
   end
 
   //Generate the internal WS signal
-  always_ff @(negedge sck_i, negedge rst_ni) begin
+  always_ff @(posedge clk_i, negedge rst_ni) begin
     if (rst_ni == 1'b0) begin
       ws_o <= 1'b0;
     end else begin
-      if (en_i) begin
+      if (en_i & falling_sck) begin
         if (r_counter == cfg_sample_width_i) ws_o <= ~ws_o;
       end
     end

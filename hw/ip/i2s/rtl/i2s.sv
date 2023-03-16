@@ -9,8 +9,7 @@
 module i2s #(
     parameter type reg_req_t = logic,
     parameter type reg_rsp_t = logic,
-    parameter int unsigned FIFO_DEPTH = 256,
-    localparam int unsigned FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH)
+    parameter int unsigned FIFO_DEPTH = 4
 ) (
     input logic clk_i,
     input logic rst_ni,
@@ -45,9 +44,6 @@ module i2s #(
   i2s_reg2hw_t reg2hw;
   i2s_hw2reg_t hw2reg;
 
-
-  logic sck;
-
   // RX Window Interface signals
   reg_req_t    rx_win_h2d;
   reg_rsp_t    rx_win_d2h;
@@ -75,22 +71,27 @@ module i2s #(
 
   assign i2s_rx_valid_o = rx_fifo_data_out_valid;
 
-  // RX FIFO
-  cdc_fifo_gray #(
-      .WIDTH(SampleWidth),
-      .LOG_DEPTH(FIFO_ADDR_WIDTH)
-  ) rx_fifo_i (
-      .src_clk_i  (sck),
-      .src_rst_ni (rst_ni),
-      .src_ready_o(rx_fifo_ready),
-      .src_data_i (rx_fifo_data_in),
-      .src_valid_i(rx_fifo_data_in_valid),
+  logic rx_fifo_full;
+  logic rx_fifo_empty;
+  assign rx_fifo_data_out_valid = ~rx_fifo_empty;
+  assign rx_fifo_ready = ~rx_fifo_full;
 
-      .dst_rst_ni (rst_ni),
-      .dst_clk_i  (clk_i),
-      .dst_data_o (rx_fifo_data_out),
-      .dst_valid_o(rx_fifo_data_out_valid),
-      .dst_ready_i(rx_fifo_data_out_ready)
+  // RX FIFO
+  fifo_v3 #(
+      .DATA_WIDTH(SampleWidth),
+      .DEPTH(FIFO_DEPTH)
+  ) rx_fifo_i (
+      .clk_i(clk_i),
+      .rst_ni(rst_ni),
+      .empty_o(rx_fifo_empty),
+      .full_o(rx_fifo_full),
+      .data_i(rx_fifo_data_in),
+      .push_i(rx_fifo_data_in_valid),
+      .data_o(rx_fifo_data_out),
+      .pop_i(rx_fifo_data_out_ready),
+      .flush_i(1'b0),
+      .testmode_i(1'b0),
+      .usage_o()
   );
 
 
@@ -151,8 +152,6 @@ module i2s #(
       .i2s_sd_o    (i2s_sd_o),
       .i2s_sd_oe_o (i2s_sd_oe_o),
       .i2s_sd_i    (i2s_sd_i),
-
-      .sck_o(sck),
 
       .cfg_clk_ws_en_i(reg2hw.cfg.gen_clk_ws.q),
       .cfg_lsb_first_i(reg2hw.cfg.lsb_first.q),
