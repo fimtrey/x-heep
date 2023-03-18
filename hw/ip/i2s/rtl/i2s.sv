@@ -48,6 +48,8 @@ module i2s #(
   reg_req_t    rx_win_h2d;
   reg_rsp_t    rx_win_d2h;
 
+  logic en;
+  assign en = |reg2hw.cfg.en;
 
   logic rx_fifo_ready;
   logic [SampleWidth-1:0] rx_fifo_data_in;
@@ -75,6 +77,7 @@ module i2s #(
   logic rx_fifo_empty;
   assign rx_fifo_data_out_valid = ~rx_fifo_empty;
   assign rx_fifo_ready = ~rx_fifo_full;
+  assign rx_fifo_err = 1'b0;
 
   // RX FIFO
   fifo_v3 #(
@@ -139,9 +142,11 @@ module i2s #(
       .SampleWidth(SampleWidth),
       .ClkDivSize (ClkDivSize)
   ) i2s_core_i (
-      .clk_i (clk_i),
+      .clk_i(clk_i),
       .rst_ni(rst_ni),
-      .en_i  (reg2hw.cfg.en),
+      .en_i(en),
+      .en_left_i(reg2hw.cfg.en[0]),
+      .en_right_i(reg2hw.cfg.en[1]),
 
       .i2s_sck_o   (i2s_sck_o),
       .i2s_sck_oe_o(i2s_sck_oe_o),
@@ -158,10 +163,9 @@ module i2s #(
       .cfg_clock_div_i(reg2hw.clkdividx.q),
       .cfg_sample_width_i(sample_width),
 
-      .fifo_rx_data_o(rx_fifo_data_in),
-      .fifo_rx_data_valid_o(rx_fifo_data_in_valid),
-      .fifo_rx_data_ready_i(rx_fifo_ready),
-      .fifo_rx_err_o(rx_fifo_err)
+      .sample_o(rx_fifo_data_in),
+      .sample_valid_o(rx_fifo_data_in_valid),
+      .sample_ready_i(rx_fifo_ready)
   );
 
   logic event_i2s_event;
@@ -176,12 +180,12 @@ module i2s #(
       intr_reach_counter <= 32'h0;
     end else begin
       if (intr_reach_counter == reg2hw.reachcount.q) begin
-        if (reg2hw.cfg.en & rx_fifo_data_out_ready & rx_fifo_data_out_valid) begin
+        if (en & rx_fifo_data_out_ready & rx_fifo_data_out_valid) begin
           intr_reach_counter <= 32'h1;
         end else begin
           intr_reach_counter <= 32'h0;
         end
-      end else if (reg2hw.cfg.en & rx_fifo_data_out_ready & rx_fifo_data_out_valid) begin
+      end else if (en & rx_fifo_data_out_ready & rx_fifo_data_out_valid) begin
         intr_reach_counter <= intr_reach_counter + 32'h1;
       end
     end

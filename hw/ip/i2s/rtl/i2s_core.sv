@@ -13,6 +13,8 @@ module i2s_core #(
     input logic clk_i,
     input logic rst_ni,
     input logic en_i,
+    input logic en_left_i,
+    input logic en_right_i,
 
 
     // IO interface
@@ -32,11 +34,10 @@ module i2s_core #(
     input logic                           cfg_clk_ws_en_i,
     input logic [$clog2(SampleWidth)-1:0] cfg_sample_width_i,
 
-    // FIFO
-    output logic [SampleWidth-1:0] fifo_rx_data_o,
-    output logic                   fifo_rx_data_valid_o,
-    input  logic                   fifo_rx_data_ready_i,
-    output logic                   fifo_rx_err_o
+    // data out
+    output logic [SampleWidth-1:0] sample_o,
+    output logic                   sample_valid_o,
+    input  logic                   sample_ready_i
 );
 
   logic ws;
@@ -95,7 +96,7 @@ module i2s_core #(
       .sd_i(i2s_sd_i),
       .cfg_lsb_first_i(cfg_lsb_first_i),
       .cfg_sample_width_i(cfg_sample_width_i),
-      .sample_o(fifo_rx_data_o),
+      .sample_o(sample_o),
       .valid_o(sample_valid),
       .read_i(sample_read),
       .left_channel_o(left_channel)
@@ -103,16 +104,17 @@ module i2s_core #(
 
   logic sample_ws;
 
-  assign fifo_rx_err_o = 1'b0;
-  assign fifo_rx_data_valid_o = (sample_ws == left_channel) & sample_valid;
+  assign sample_valid_o = (sample_ws == left_channel) & sample_valid;
 
-  assign sample_read = (fifo_rx_data_valid_o & fifo_rx_data_ready_i);
+  assign sample_read = (sample_valid_o & sample_ready_i);
 
   always_ff @(posedge clk_i, negedge rst_ni) begin
     if (~rst_ni) begin
       sample_ws <= 1'b0;
     end else begin
-      if (fifo_rx_data_valid_o & fifo_rx_data_ready_i) begin
+      if (en_right_i == 1'b0) sample_ws <= 1'b0;
+      else if (en_left_i == 1'b0) sample_ws <= 1'b1;
+      else if (sample_valid_o & sample_ready_i) begin
         sample_ws <= ~sample_ws;
       end
     end

@@ -111,12 +111,12 @@ module i2s_reg_top #(
   logic [15:0] clkdividx_qs;
   logic [15:0] clkdividx_wd;
   logic clkdividx_we;
-  logic cfg_en_qs;
-  logic cfg_en_wd;
+  logic [1:0] cfg_en_qs;
+  logic [1:0] cfg_en_wd;
   logic cfg_en_we;
-  logic cfg_gen_clk_ws_qs;
-  logic cfg_gen_clk_ws_wd;
-  logic cfg_gen_clk_ws_we;
+  logic cfg_en_r_qs;
+  logic cfg_en_r_wd;
+  logic cfg_en_r_we;
   logic cfg_lsb_first_qs;
   logic cfg_lsb_first_wd;
   logic cfg_lsb_first_we;
@@ -126,6 +126,9 @@ module i2s_reg_top #(
   logic [1:0] cfg_data_width_qs;
   logic [1:0] cfg_data_width_wd;
   logic cfg_data_width_we;
+  logic cfg_gen_clk_ws_qs;
+  logic cfg_gen_clk_ws_wd;
+  logic cfg_gen_clk_ws_we;
   logic [31:0] reachcount_qs;
   logic [31:0] reachcount_wd;
   logic reachcount_we;
@@ -165,11 +168,11 @@ module i2s_reg_top #(
 
   // R[cfg]: V(False)
 
-  //   F[en]: 0:0
+  //   F[en]: 1:0
   prim_subreg #(
-      .DW      (1),
+      .DW      (2),
       .SWACCESS("RW"),
-      .RESVAL  (1'h0)
+      .RESVAL  (2'h0)
   ) u_cfg_en (
       .clk_i (clk_i),
       .rst_ni(rst_ni),
@@ -191,18 +194,18 @@ module i2s_reg_top #(
   );
 
 
-  //   F[gen_clk_ws]: 1:1
+  //   F[en_r]: 1:1
   prim_subreg #(
       .DW      (1),
       .SWACCESS("RW"),
       .RESVAL  (1'h0)
-  ) u_cfg_gen_clk_ws (
+  ) u_cfg_en_r (
       .clk_i (clk_i),
       .rst_ni(rst_ni),
 
       // from register interface
-      .we(cfg_gen_clk_ws_we),
-      .wd(cfg_gen_clk_ws_wd),
+      .we(cfg_en_r_we),
+      .wd(cfg_en_r_wd),
 
       // from internal hardware
       .de(1'b0),
@@ -210,10 +213,10 @@ module i2s_reg_top #(
 
       // to internal hardware
       .qe(),
-      .q (reg2hw.cfg.gen_clk_ws.q),
+      .q (reg2hw.cfg.en_r.q),
 
       // to register interface (read)
-      .qs(cfg_gen_clk_ws_qs)
+      .qs(cfg_en_r_qs)
   );
 
 
@@ -292,6 +295,32 @@ module i2s_reg_top #(
 
       // to register interface (read)
       .qs(cfg_data_width_qs)
+  );
+
+
+  //   F[gen_clk_ws]: 6:6
+  prim_subreg #(
+      .DW      (1),
+      .SWACCESS("RW"),
+      .RESVAL  (1'h0)
+  ) u_cfg_gen_clk_ws (
+      .clk_i (clk_i),
+      .rst_ni(rst_ni),
+
+      // from register interface
+      .we(cfg_gen_clk_ws_we),
+      .wd(cfg_gen_clk_ws_wd),
+
+      // from internal hardware
+      .de(1'b0),
+      .d ('0),
+
+      // to internal hardware
+      .qe(),
+      .q (reg2hw.cfg.gen_clk_ws.q),
+
+      // to register interface (read)
+      .qs(cfg_gen_clk_ws_qs)
   );
 
 
@@ -429,10 +458,10 @@ module i2s_reg_top #(
   assign clkdividx_wd = reg_wdata[15:0];
 
   assign cfg_en_we = addr_hit[1] & reg_we & !reg_error;
-  assign cfg_en_wd = reg_wdata[0];
+  assign cfg_en_wd = reg_wdata[1:0];
 
-  assign cfg_gen_clk_ws_we = addr_hit[1] & reg_we & !reg_error;
-  assign cfg_gen_clk_ws_wd = reg_wdata[1];
+  assign cfg_en_r_we = addr_hit[1] & reg_we & !reg_error;
+  assign cfg_en_r_wd = reg_wdata[1];
 
   assign cfg_lsb_first_we = addr_hit[1] & reg_we & !reg_error;
   assign cfg_lsb_first_wd = reg_wdata[2];
@@ -442,6 +471,9 @@ module i2s_reg_top #(
 
   assign cfg_data_width_we = addr_hit[1] & reg_we & !reg_error;
   assign cfg_data_width_wd = reg_wdata[5:4];
+
+  assign cfg_gen_clk_ws_we = addr_hit[1] & reg_we & !reg_error;
+  assign cfg_gen_clk_ws_wd = reg_wdata[6];
 
   assign reachcount_we = addr_hit[2] & reg_we & !reg_error;
   assign reachcount_wd = reg_wdata[31:0];
@@ -458,11 +490,12 @@ module i2s_reg_top #(
       end
 
       addr_hit[1]: begin
-        reg_rdata_next[0]   = cfg_en_qs;
-        reg_rdata_next[1]   = cfg_gen_clk_ws_qs;
+        reg_rdata_next[1:0] = cfg_en_qs;
+        reg_rdata_next[1]   = cfg_en_r_qs;
         reg_rdata_next[2]   = cfg_lsb_first_qs;
         reg_rdata_next[3]   = cfg_intr_en_qs;
         reg_rdata_next[5:4] = cfg_data_width_qs;
+        reg_rdata_next[6]   = cfg_gen_clk_ws_qs;
       end
 
       addr_hit[2]: begin

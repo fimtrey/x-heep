@@ -20,11 +20,12 @@ package i2s_reg_pkg;
   typedef struct packed {logic [15:0] q;} i2s_reg2hw_clkdividx_reg_t;
 
   typedef struct packed {
-    struct packed {logic q;} en;
-    struct packed {logic q;} gen_clk_ws;
+    struct packed {logic [1:0] q;} en;
+    struct packed {logic q;} en_r;
     struct packed {logic q;} lsb_first;
     struct packed {logic q;} intr_en;
     struct packed {logic [1:0] q;} data_width;
+    struct packed {logic q;} gen_clk_ws;
   } i2s_reg2hw_cfg_reg_t;
 
   typedef struct packed {logic [31:0] q;} i2s_reg2hw_reachcount_reg_t;
@@ -54,8 +55,8 @@ package i2s_reg_pkg;
 
   // Register -> HW type
   typedef struct packed {
-    i2s_reg2hw_clkdividx_reg_t clkdividx;  // [56:41]
-    i2s_reg2hw_cfg_reg_t cfg;  // [40:35]
+    i2s_reg2hw_clkdividx_reg_t clkdividx;  // [58:43]
+    i2s_reg2hw_cfg_reg_t cfg;  // [42:35]
     i2s_reg2hw_reachcount_reg_t reachcount;  // [34:3]
     i2s_reg2hw_control_reg_t control;  // [2:2]
     i2s_reg2hw_status_reg_t status;  // [1:0]
