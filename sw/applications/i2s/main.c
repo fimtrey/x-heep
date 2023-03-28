@@ -23,7 +23,8 @@
 #include "dma_regs.h"
 #include "fast_intr_ctrl.h"
 #include "fast_intr_ctrl_regs.h"
-
+#include "uart.h"
+#include "soc_ctrl.h"
 
 
 // Interrupt controller variables
@@ -39,7 +40,7 @@ int i2s_interrupt_flag;
 #ifdef TARGET_PYNQ_Z2
 #define I2S_TEST_BATCH_SIZE    128
 #define I2S_TEST_BATCHES      16
-#define I2S_CLK_DIV           4
+#define I2S_CLK_DIV           8
 #define AUDIO_DATA_NUM 1024
 #define I2S_USE_INTERRUPT false
 #else
@@ -141,8 +142,18 @@ int main(int argc, char *argv[]) {
 
     printf("Setup done!\r\n");
 
+    
+
 #ifdef TARGET_PYNQ_Z2
 #pragma message ( "this application never ends" )
+        soc_ctrl_t soc_ctrl;
+    soc_ctrl.base_addr = mmio_region_from_addr((uintptr_t)SOC_CTRL_START_ADDRESS);
+
+        uart_t uart;
+    uart.base_addr   = mmio_region_from_addr((uintptr_t)UART_START_ADDRESS);
+    uart.baudrate    = UART_BAUDRATE;
+    uart.clk_freq_hz = soc_ctrl_get_frequency(&soc_ctrl);
+
     int batch = 0;
     while(1) {
         while(!dma_intr_flag) {
@@ -151,8 +162,10 @@ int main(int argc, char *argv[]) {
         }
         dma_intr_flag = 0;
         int32_t* data = dma_buffer_id ? audio_data_0 : audio_data_1;
-        for (int i = 0; i < AUDIO_DATA_NUM; i+=2) {
-            printf("%d %d\r\n", data[i], data[i+1]);
+        for (int i = 0; i < AUDIO_DATA_NUM; i+=4) {
+            uint16_t value = (int16_t) (data[i] >> 16);
+            uart_putchar(&uart, (uint8_t) (value >> 8));
+            uart_putchar(&uart, (uint8_t) value);
         }
         batch += 1;
     }

@@ -13,7 +13,7 @@ extern "C" {
 
 
 #define REFERENCE_CLOCK_Hz 20*1000*1000
-#define UART_BAUDRATE 115200
+#define UART_BAUDRATE 921600
 #define TARGET_PYNQ_Z2
 
 
