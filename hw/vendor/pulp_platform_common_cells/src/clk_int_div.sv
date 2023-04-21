@@ -148,7 +148,7 @@ module clk_int_div #(
           end
         // If we disabled the clock output, stop the cycle counter and the
         // toggle flip-flops at the start of the next period to safe energy.
-        end else if (!en_i && ungated_output_clock == 1'b0) begin
+        end else if (!en_i && generated_clock == 1'b0) begin
             cycle_counter_en                 = 1'b0;
             toggle_ffs_en                    = 1'b0;
         end
@@ -161,7 +161,7 @@ module clk_int_div #(
         // that the clock gate disable (gate_en) was latched and changing the
         // div_q and the cycle_counter_q value cannot affect the output clock
         // any longer.
-        if ((ungated_output_clock == 1'b0) || clk_div_bypass_en_q) begin
+        if ((generated_clock == 1'b0) || clk_div_bypass_en_q) begin
           // Now clear the cycle counter and the toggle flip flops to have a
           // deterministic output phase (rising edge of output clock always
           // coincides with first rising edge of input clock when cycl_count_o
