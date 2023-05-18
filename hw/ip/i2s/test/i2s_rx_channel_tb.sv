@@ -15,7 +15,7 @@ module i2s_rx_channel_tb #(
 
   logic sck = 1'b0; 
   logic ws; 
-  logic sd = 1'b1; 
+  logic sd; 
 
   logic mic_sck;
 
@@ -46,7 +46,7 @@ module i2s_rx_channel_tb #(
       .ws_i(ws),
       .sd_i(sd),
 
-      .word_width_i(cfg_word_width),
+      .word_width_i(word_width),
       .start_channel_i(start_channel),
 
       .data_o(data),
@@ -57,20 +57,22 @@ module i2s_rx_channel_tb #(
 
   
 
-  i2s_ws_gen #(
-      .MaxWordWidth(MaxWordWidth)
-  ) i2s_ws_gen_i (
-      .sck_i(sck),
-      .rst_ni(rst_n),
-      .en_i(en_ws),
-      .ws_o(ws),
-      .word_width_i(ws_gen_word_width)
-  );
+  // i2s_ws_gen #(
+  //     .MaxWordWidth(MaxWordWidth)
+  // ) i2s_ws_gen_i (
+  //     .sck_i(sck),
+  //     .rst_ni(rst_n),
+  //     .en_i(en_ws),
+  //     .ws_o(ws),
+  //     .word_width_i(ws_gen_word_width)
+  // );
 
+  logic [31:0] test_data;
 
-  i2s_microphone i2s_microphone_i (
+  test_mic i2s_microphone_i (
       .rst_ni(rst_n),
       .i2s_sck_i(mic_sck),
+      .test_data_i(test_data),
       .i2s_ws_i(ws),
       .i2s_sd_o(sd)
   );
@@ -79,7 +81,7 @@ module i2s_rx_channel_tb #(
 
   assign mic_sck = connect_mic ? sck : 1'b0;
 
-  // SCK generation
+  // sck generation
   logic gen_sck = 1'b0; 
   always #(5) begin
     if (gen_sck) begin
@@ -88,7 +90,7 @@ module i2s_rx_channel_tb #(
   end
 
 
-  logic fifo_ready = 1'b0;
+  logic fifo_ready = 1'b1;
 
   assign data_ready = fifo_ready;
 
@@ -96,28 +98,199 @@ module i2s_rx_channel_tb #(
     if (~rst_n) begin
     end else begin
       if (data_ready & data_valid) begin
-        $display("%d: Data is %08x", data, $timestamp);
+        $display("%d: Data is %08x", $time, data);
       end
     end
   end
 
-  initial begin
+
+  task reset();
+    connect_mic <= 1'b0;
+    en_left = 1'b0;
+    en_right = 1'b0;
+    gen_sck <= 1'b0;
     rst_n = 1'b0;
-    #10
-    rst_n = 1'b1;
+    #10 rst_n = 1'b1;
+    #10 gen_sck <= 1'b1;
+    @(negedge sck);
+    @(negedge sck);
+  endtask
 
-    #10
-    gen_sck <= 1'b1;
 
-    #100
-    en_ws = 1'b1;
+  initial begin
+
+    //------------------------------------------------------------
+    $display("TEST 32 bit channel !!!");
+    reset();
+
+    word_width = 5'b11111;
     connect_mic <= 1'b1;
     en_left = 1'b1;
     en_right = 1'b1;
+
+    test_data = 32'ha6a6a6a6;
+    @(negedge sck) ws = 1'b1;
+    @(negedge sck);
+    @(negedge sck);
+    @(negedge sck) ws = 1'b0; // left channel
+    repeat (32) @(negedge sck);
+
+    ws = ~ws;
+    test_data = 32'h6a6a6a6a;
+    @(posedge data_valid);
+    assert(data == 32'ha6a6a6a6);
+
     
-    #(32*10*8)
+    repeat (36) @(negedge sck);
+    ws = ~ws;
+    @(posedge data_valid);
+    assert(data == 32'h6a6a6a6a);
+    @(negedge sck);
+    @(negedge sck);
+
+
+
+    //------------------------------------------------------------
+    $display("TEST 8 bit channel !!!");
+    word_width = 5'b00111;
+    reset();
+    connect_mic <= 1'b1;
+    en_left = 1'b1;
+    en_right = 1'b1;
+
+    test_data = 32'ha6a6a6a6;
+    @(negedge sck) ws = 1'b1;
+    @(negedge sck);
+    @(negedge sck);
+    @(negedge sck) ws = 1'b0; // left channel
+    repeat (32) @(negedge sck);
+
+    ws = ~ws;
+    test_data = 32'h6a6a6a6a;
+    @(posedge data_valid);
+    assert(data == 32'ha6);
+
+    
+    repeat (36) @(negedge sck);
+    ws = ~ws;
+    @(posedge data_valid);
+    assert(data == 32'h6a);
+    @(negedge sck);
+    @(negedge sck);
+
+
+    //------------------------------------------------------------
+    $display("TEST single channel !!!");
+    reset();
+    connect_mic <= 1'b1;
+    en_left = 1'b0;
+    en_right = 1'b1;
+
+    test_data = 32'ha6a6a6a6;
+    @(negedge sck) ws = 1'b1;
+    @(negedge sck);
+    @(negedge sck);
+    @(negedge sck) ws = 1'b0; // left channel
+    repeat (32) @(negedge sck);
+
+    ws = ~ws;
+    test_data = 32'h6a6a6a6a;
+    
+    // this was the left channel -> no data should be available
+    @(negedge sck) assert(data_valid == 1'b0);
+    @(negedge sck) assert(data_valid == 1'b0); // <<--- this one triggers if wrong channel
+    @(negedge sck) assert(data_valid == 1'b0);
+
+    repeat (32) @(negedge sck);
+    ws = ~ws;
+    @(posedge data_valid);
+    assert(data == 32'h6a);
+    @(negedge sck);
+    @(negedge sck);
+    connect_mic <= 1'b0;
+    en_left = 1'b0;
+    en_right = 1'b0;
+
+
+    //------------------------------------------------------------
+    $display("TEST overflow !!!");
+    reset();
+    connect_mic <= 1'b1;
+    en_left = 1'b1;
+    en_right = 1'b1;
+    fifo_ready = 1'b0;
+    word_width = 5'b11111;
+
+    test_data = 32'ha6a6a6a6;
+    @(negedge sck) ws = 1'b1;
+    @(negedge sck);
+    @(negedge sck);
+    @(negedge sck) ws = 1'b0; // left channel
+    repeat (32) @(negedge sck);
+
+    ws = ~ws;
+    test_data = 32'h6a6a6a6a;
+    @(posedge data_valid);
+    assert(data == 32'ha6a6a6a6);
+
+    repeat (36) @(negedge sck);
+    ws = ~ws;
+    @(negedge sck);
+    @(negedge sck);
+
+    assert(overflow == 1'b1);
+    @(negedge sck);
+
+    en_left = 0;
+    en_right = 0;
+    @(negedge sck);
+    @(negedge sck);
+    assert(overflow == 1'b0);
+
     $stop;
   end
 
 
 endmodule
+
+module test_mic (
+    input logic rst_ni,
+
+    // i2s interface ports
+    input logic i2s_sck_i,
+    input logic i2s_ws_i,
+
+    input logic [31:0] test_data_i,
+
+    // output ports
+    output logic i2s_sd_o
+);
+  logic [31:0] test_data_q;
+  logic [5:0] bit_count;
+  logic s_ws;
+  logic r_ws;
+
+  assign s_ws = i2s_ws_i;
+
+  always_ff @(posedge i2s_sck_i or negedge rst_ni) begin
+    if (~rst_ni) begin
+      bit_count <= 0;
+      r_ws <= 0;
+      test_data_q <= 'h0;
+    end else begin
+      if (s_ws != r_ws) begin
+        bit_count <= 0;
+        r_ws <= s_ws;
+        test_data_q <= test_data_i;
+      end else begin
+        bit_count <= bit_count + 1;
+      end
+    end
+  end
+
+  always_ff @(negedge i2s_sck_i) begin
+    i2s_sd_o <= test_data_q[31-bit_count];  // MSB first
+  end
+
+endmodule
+
