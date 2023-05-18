@@ -1,0 +1,7 @@
+# exclude vsim files
+*.wlf
+*.mpf
+transcript
+work/
+*.mti
+*.bak
