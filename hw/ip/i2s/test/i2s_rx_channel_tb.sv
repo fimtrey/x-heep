@@ -17,7 +17,7 @@ module i2s_rx_channel_tb #(
   logic ws; 
   logic sd = 1'b1; 
 
-  logic mic_sck = 1'b0;
+  logic mic_sck;
 
   logic en_left = 1'b0;
   logic en_right = 1'b0;
@@ -92,8 +92,8 @@ module i2s_rx_channel_tb #(
 
   assign data_ready = fifo_ready;
 
-  always_ff @(posedge sck, negedge rst_ni) begin
-    if (~rst_ni) begin
+  always_ff @(posedge sck, negedge rst_n) begin
+    if (~rst_n) begin
     end else begin
       if (data_ready & data_valid) begin
         $display("%d: Data is %08x", data, $timestamp);
@@ -110,12 +110,12 @@ module i2s_rx_channel_tb #(
     gen_sck <= 1'b1;
 
     #100
-    en_ws;
+    en_ws = 1'b1;
     connect_mic <= 1'b1;
     en_left = 1'b1;
     en_right = 1'b1;
     
-    #32*10*8
+    #(32*10*8)
     $stop;
   end
 
