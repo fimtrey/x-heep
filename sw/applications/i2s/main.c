@@ -26,14 +26,14 @@
 #define I2S_TEST_BATCH_SIZE    128
 #define I2S_TEST_BATCHES      16
 #define I2S_CLK_DIV           8
-#define AUDIO_DATA_NUM 2048                          // RECORDING LENGTH
+#define AUDIO_DATA_NUM 0x10000                          // RECORDING LENGTH
 //#define AUDIO_DATA_NUM 100000                          // RECORDING LENGTH
 #define I2S_USE_INTERRUPT false
-#define USE_DMA
+//#define USE_DMA
 #else
 #define I2S_TEST_BATCH_SIZE    128
 #define I2S_TEST_BATCHES      4
-#define I2S_CLK_DIV           512
+#define I2S_CLK_DIV           8
 #define AUDIO_DATA_NUM 4
 #define I2S_USE_INTERRUPT false
 //#define USE_DMA
@@ -136,6 +136,12 @@ void setup()
 
 
 int main(int argc, char *argv[]) {
+    for (uint32_t i = 0; i < 256; i++)
+    {
+        printf("%d", i);
+    }
+    printf("\n");
+    
     //printf("I2s DEMO\r\n");
 
     setup();
@@ -151,7 +157,7 @@ int main(int argc, char *argv[]) {
 
     int batch = 0;
     while(1) {
-        i2s_rx_start(I2S_RIGHT_CH);
+        i2s_rx_start(I2S_LEFT_CH);
 
         #ifdef USE_DMA
         dma_set_cnt_start(&dma, (uint32_t) (AUDIO_DATA_NUM*4)); // start 
@@ -169,7 +175,6 @@ int main(int argc, char *argv[]) {
             audio_data_0[i] = i2s_rx_read_data();
         }
         #endif
-        i2s_rx_stop();
 
         int32_t* data = audio_data_0;
         for (int i = 0; i < AUDIO_DATA_NUM; i+=1) {
@@ -179,8 +184,7 @@ int main(int argc, char *argv[]) {
             // }
         }
         batch += 1;
-
-        printf("Overflow bit %d", i2s_rx_overflow());
+        i2s_rx_stop();
 
         break;
 
@@ -194,7 +198,7 @@ int main(int argc, char *argv[]) {
     //
 
     for (int batch = 0; batch < I2S_TEST_BATCHES; batch++) {
-        i2s_rx_start(I2S_RIGHT_CH);
+        i2s_rx_start(I2S_BOTH_CH);
 
         #ifdef USE_DMA
         dma_set_cnt_start(&dma, (uint32_t) (AUDIO_DATA_NUM*4)); // start 
@@ -211,7 +215,6 @@ int main(int argc, char *argv[]) {
             audio_data_0[i] = i2s_rx_read_data();
         }
         #endif
-        i2s_rx_stop();
 
         printf("B%x\r\n", batch);
         
@@ -219,6 +222,8 @@ int main(int argc, char *argv[]) {
         for (int i = 0; i < AUDIO_DATA_NUM; i+=2) {
             printf("%d %d\r\n", data[i], data[i+1]);
         }
+
+        i2s_rx_stop();
         #ifdef USE_DMA
         //dma_set_cnt_start(&dma, (uint32_t) (AUDIO_DATA_NUM*4)); // restart 
         #endif

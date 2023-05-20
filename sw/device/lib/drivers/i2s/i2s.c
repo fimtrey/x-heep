@@ -119,12 +119,14 @@ void i2s_rx_start(i2s_channel_sel_t channels)
 
   control &= ~(
     (I2S_CONTROL_EN_RX_MASK << I2S_CONTROL_EN_RX_OFFSET) // disable rx
-    + (1 << I2S_CONTROL_EN_WS_BIT)                       // disable ws gen
-    + (1 << I2S_CONTROL_EN_IO_BIT)                       // disable ios
   );
 
   // enable clock
-  control |= (1 << I2S_CONTROL_EN_BIT); // enable peripheral and clock domain
+  control |= (
+    (1 << I2S_CONTROL_EN_BIT) // c peripheral and clock domain
+    | (1 << I2S_CONTROL_EN_WS_BIT)                       // enable ws gen
+    | (1 << I2S_CONTROL_EN_IO_BIT)                       // enable ios
+  );
   i2s_peri->CONTROL = control;
 
   // check if overflow has occurred
@@ -136,6 +138,15 @@ void i2s_rx_start(i2s_channel_sel_t channels)
   
   // cdc_2phase FIFO is not clearable, so we have to empty the FIFO manually
   // note: this uses much less resources
+  i2s_rx_read_data(); // read to empty FIFO
+  i2s_rx_read_data(); // read to empty FIFO
+  i2s_rx_read_data(); // read to empty FIFO
+  i2s_rx_read_data(); // read to empty FIFO
+
+  for (uint32_t i=0; i < 0x00400000; i++) {
+    asm volatile("nop");
+  }
+
   while (i2s_rx_data_available()) {
     i2s_rx_read_data(); // read to empty FIFO
   }
@@ -159,7 +170,7 @@ void i2s_rx_stop()
     (1 << I2S_CONTROL_EN_BIT)                               // disable peripheral and clock domain
     + (I2S_CONTROL_EN_RX_MASK << I2S_CONTROL_EN_RX_OFFSET)  // disable rx
     + (1 << I2S_CONTROL_EN_WS_BIT)                          // disable ws gen
-    + (1 << I2S_CONTROL_EN_IO_BIT)                          // disable ios
+    /*+ (1 << I2S_CONTROL_EN_IO_BIT)*/                          // disable ios
   );
   i2s_peri->CONTROL = control;
 }
