@@ -187,7 +187,6 @@ module clk_int_div #(
           use_odd_division_d      = div_i_normalized[0];
           clk_div_bypass_en_d     = div_i_normalized == 1;
           clk_gate_state_d        = en_i ? WAIT_END_PERIOD : IDLE;
-          if (! en_i) clk_
         end
       end
 
