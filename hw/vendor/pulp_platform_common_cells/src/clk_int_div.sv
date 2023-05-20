@@ -122,7 +122,6 @@ module clk_int_div #(
 
   logic                         use_odd_division_d, use_odd_division_q;
   logic                         gate_en_d, gate_en_q;
-  logic                         gate_is_open_q;
   logic                         clear_cycle_counter;
   logic                         clear_toggle_flops;
 
@@ -162,7 +161,7 @@ module clk_int_div #(
           end
         // If we disabled the clock output, stop the cycle counter and the
         // toggle flip-flops at the start of the next period to safe energy.
-        end else if (!en_i && gate_is_open_q == 1'b0) begin
+        end else if (!en_i && generated_clock == 1'b0) begin
             cycle_counter_en                 = 1'b0;
             toggle_ffs_en                    = 1'b0;
         end
@@ -175,7 +174,7 @@ module clk_int_div #(
         // that the clock gate disable (gate_en) was latched and changing the
         // div_q and the cycle_counter_q value cannot affect the output clock
         // any longer.
-        if ((gate_is_open_q == 1'b0) || clk_div_bypass_en_q) begin
+        if ((generated_clock == 1'b0) || clk_div_bypass_en_q) begin
           // Now clear the cycle counter and the toggle flip flops to have a
           // deterministic output phase (rising edge of output clock always
           // coincides with first rising edge of input clock when cycl_count_o
@@ -187,7 +186,8 @@ module clk_int_div #(
           clear_toggle_flops      = 1'b1;
           use_odd_division_d      = div_i_normalized[0];
           clk_div_bypass_en_d     = div_i_normalized == 1;
-          clk_gate_state_d        = WAIT_END_PERIOD;
+          clk_gate_state_d        = en_i ? WAIT_END_PERIOD : IDLE;
+          if (! en_i) clk_
         end
       end
 
@@ -346,22 +346,6 @@ module clk_int_div #(
 
   //--------------------- Clock gate logic ---------------------
   // During the transitioning phase, we gate the clock to prevent clock glitches
-
-  // The gate_is_open_q signal is used by the FSM to determine whether the
-  // gate_en signal has been latched by the clock gate cell, i.e. if this signal
-  // is 1'b0, it means not only that the clock gate should be disabled but also that
-  // clk_o is currently LOW and thus the enable signal has been latched and the
-  // output clock will remain LOW until we enable the clock again.
-  // The FSM needs to know this to not disable the T-FFs and the cycle counter
-  // to early. Otherwise the clock might get stuck active high or we deassert a
-  // clock to early
-  always_ff @(posedge ungated_output_clock, negedge rst_ni) begin
-    if (!rst_ni) begin
-      gate_is_open_q <= 1'b0;
-    end else begin
-      gate_is_open_q <= gate_en_q & en_i;
-    end
-  end
 
   tc_clk_gating #(
     .IS_FUNCTIONAL(1) // The gate is required to prevent glitches during
