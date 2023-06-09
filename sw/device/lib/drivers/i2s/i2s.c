@@ -60,7 +60,7 @@ i2s_result_t i2s_init(uint16_t div_value, i2s_word_length_t word_length)
 
   // write word_length to register
   uint32_t control = i2s_peri->CONTROL;
-  bitfield_field32_write(control, I2S_CONTROL_DATA_WIDTH_FIELD, word_length);
+  control = bitfield_field32_write(control, I2S_CONTROL_DATA_WIDTH_FIELD, word_length);
 
   // enable base modules
   control |= (
@@ -121,7 +121,7 @@ i2s_result_t i2s_rx_start(i2s_channel_sel_t channels)
   }
 
   control = bitfield_field32_write(control, I2S_CONTROL_EN_RX_FIELD, channels);
-  control = (1 << I2S_CONTROL_RESET_WATERMARK_BIT); // reset waterlevel
+  control |= (1 << I2S_CONTROL_RESET_WATERMARK_BIT); // reset waterlevel
 
   i2s_peri->CONTROL = control;
   return kI2sOk;
